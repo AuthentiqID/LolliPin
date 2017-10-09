@@ -1,7 +1,6 @@
 package com.github.orangegangsters.lollipin.lib.views;
 
 import android.support.v7.app.ActionBarActivity;
-
 import com.github.orangegangsters.lollipin.lib.interfaces.LifeCycleInterface;
 
 /**
@@ -19,6 +18,14 @@ public class PinActionBarActivity extends ActionBarActivity {
             mLifeCycleListener.onActivityResumed(PinActionBarActivity.this);
         }
         super.onResume();
+    }
+
+    @Override
+    public void onUserInteraction() {
+        if (mLifeCycleListener != null){
+            mLifeCycleListener.onActivityUserInteraction(PinActionBarActivity.this);
+        }
+        super.onUserInteraction();
     }
 
     @Override
