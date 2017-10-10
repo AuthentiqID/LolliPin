@@ -157,6 +157,22 @@ public abstract class AppLock {
     public abstract void setLastActiveMillis();
 
     /**
+     * Set the lock now parameter of the app to true to indicate that the app should lock immediately.
+     * @param activity the activity that holds the view which initiates the lock now action
+     */
+    public abstract void lockNow(Activity activity);
+
+    /**
+     * Set the lock now parameter of the app to false.
+     */
+    public abstract void unlockNow();
+
+    /**
+     * Get the value of lock now parameter of the app to check if it was locked intentionally.
+     */
+    public abstract boolean lockedIntentionally();
+
+    /**
      * Set the passcode (store his SHA1 into {@link android.content.SharedPreferences}) using the
      * {@link com.github.orangegangsters.lollipin.lib.encryption.Encryptor} class.
      */

@@ -2,12 +2,12 @@ package com.github.orangegangsters.lollipin;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v7.app.*;
 import android.view.View;
 import android.widget.Toast;
 
 import com.github.orangegangsters.lollipin.lib.PinActivity;
 import com.github.orangegangsters.lollipin.lib.managers.AppLock;
+import com.github.orangegangsters.lollipin.lib.managers.LockManager;
 
 import lollipin.orangegangsters.github.com.lollipin.R;
 
@@ -26,6 +26,7 @@ public class MainActivity extends PinActivity implements View.OnClickListener {
         this.findViewById(R.id.button_unlock_pin).setOnClickListener(this);
         this.findViewById(R.id.button_compat_locked).setOnClickListener(this);
         this.findViewById(R.id.button_not_locked).setOnClickListener(this);
+        this.findViewById(R.id.button_lock_now).setOnClickListener(this);
     }
 
     @Override
@@ -47,6 +48,9 @@ public class MainActivity extends PinActivity implements View.OnClickListener {
             case R.id.button_compat_locked:
                 Intent intent2 = new Intent(MainActivity.this, LockedCompatActivity.class);
                 startActivity(intent2);
+                break;
+            case R.id.button_lock_now:
+                LockManager.getInstance().getAppLock().lockNow(this);
                 break;
             case R.id.button_not_locked:
                 Intent intent3 = new Intent(MainActivity.this, NotLockedActivity.class);

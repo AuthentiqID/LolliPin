@@ -224,12 +224,13 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
     public void finish() {
         super.finish();
 
-        //If code successful, reset the timer
+        //If code successful, reset the timer and set lock now to false;
         if (isCodeSuccessful) {
             if (mLockManager != null) {
                 AppLock appLock = mLockManager.getAppLock();
                 if (appLock != null) {
                     appLock.setLastActiveMillis();
+                    appLock.unlockNow();
                 }
             }
         }
