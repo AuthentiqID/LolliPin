@@ -145,7 +145,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
             mCancellationSignal = new CancellationSignal();
             mSelfCancelled = false;
             mFingerprintManager.authenticate(cryptoObject, mCancellationSignal, 0 /* flags */, this, null);
-            mIcon.setImageResource(R.drawable.ic_fp_40px);
+            mIcon.setImageResource(R.drawable.ic_fingerprint_match);
         }
     }
 
@@ -165,7 +165,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
      */
     @Override
     public void onAuthenticationError(int errMsgId, CharSequence errString) {
-        if (!mSelfCancelled) {
+        if (!mSelfCancelled && errMsgId != FingerprintManager.FINGERPRINT_ERROR_CANCELED) {
             showError(errString);
             mIcon.postDelayed(new Runnable() {
                 @Override
@@ -200,6 +200,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
     public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
         mErrorTextView.removeCallbacks(mResetErrorTextRunnable);
         mIcon.setImageResource(R.drawable.ic_fingerprint_success);
+        mIcon.setImageTintList(null);
         mErrorTextView.setTextColor(
                 mErrorTextView.getResources().getColor(R.color.success_color, null));
         mErrorTextView.setText(
@@ -215,7 +216,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
     /**
      * Tells if the {@link FingerprintManager#isHardwareDetected()}, {@link FingerprintManager#hasEnrolledFingerprints()},
      * and {@link KeyguardManager#isDeviceSecure()}
-     * 
+     *
      * @return true if yes, false otherwise
      * @throws SecurityException If the hardware is not available, or the permission are not set
      */
@@ -267,8 +268,8 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
                     KeyProperties.PURPOSE_ENCRYPT |
                             KeyProperties.PURPOSE_DECRYPT)
                     .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
-                            // Require the user to authenticate with a fingerprint to authorize every use
-                            // of the key
+                    // Require the user to authenticate with a fingerprint to authorize every use
+                    // of the key
                     .setUserAuthenticationRequired(true)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
                     .build());
@@ -300,7 +301,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
                     mErrorTextView.getResources().getColor(R.color.hint_color, null));
             mErrorTextView.setText(
                     mErrorTextView.getResources().getString(R.string.pin_code_fingerprint_text));
-            mIcon.setImageResource(R.drawable.ic_fp_40px);
+            mIcon.setImageResource(R.drawable.ic_fingerprint_error);
         }
     };
 

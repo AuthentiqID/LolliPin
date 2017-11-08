@@ -40,7 +40,10 @@ public class KeyboardView extends LinearLayout implements View.OnClickListener {
     }
 
     private void initializeView(AttributeSet attrs, int defStyleAttr) {
-        if (!isInEditMode()) {
+        if (attrs != null && !isInEditMode()) {
+            final TypedArray attributes = mContext.getTheme().obtainStyledAttributes(attrs, R.styleable.PinCodeView,
+                    defStyleAttr, 0);
+
             LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             KeyboardView view = (KeyboardView) inflater.inflate(R.layout.view_keyboard, this);
 
@@ -65,9 +68,7 @@ public class KeyboardView extends LinearLayout implements View.OnClickListener {
         mButtons.add((KeyboardButtonView) view.findViewById(R.id.pin_code_button_9));
         mButtons.add((KeyboardButtonView) view.findViewById(R.id.pin_code_button_clear));
 
-        for(View button : mButtons) {
-            button.setOnClickListener(this);
-        }
+        enableKeyboardButtons();
     }
 
     @Override
@@ -103,13 +104,35 @@ public class KeyboardView extends LinearLayout implements View.OnClickListener {
     }
 
     /**
-     * Set the {@link com.andexert.library.RippleAnimationListener} to the
+     * Set the RippleAnimationListener to the
      * {@link com.github.omadahealth.lollipin.lib.views.KeyboardButtonView}
      */
     public void setKeyboardButtonClickedListener(KeyboardButtonClickedListener keyboardButtonClickedListener) {
         this.mKeyboardButtonClickedListener = keyboardButtonClickedListener;
         for(KeyboardButtonView button : mButtons) {
             button.setOnRippleAnimationEndListener(mKeyboardButtonClickedListener);
+        }
+    }
+
+    /**
+     * Enable all the keyboard buttons
+     */
+    public void enableKeyboardButtons(){
+        for(KeyboardButtonView buttonView : mButtons) {
+            buttonView.setOnClickListener(this);
+            buttonView.setEnabled(true);
+            buttonView.setClickable(true);
+        }
+    }
+
+    /**
+     * Disable all the keyboard buttons
+     */
+    public void disableKeyboardButtons(){
+        for (KeyboardButtonView buttonView : mButtons){
+            buttonView.setOnClickListener(null);
+            buttonView.setEnabled(false);
+            buttonView.setClickable(false);
         }
     }
 }

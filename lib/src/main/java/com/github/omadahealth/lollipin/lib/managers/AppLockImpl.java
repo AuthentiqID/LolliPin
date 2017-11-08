@@ -4,14 +4,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.preference.PreferenceManager;
 import android.util.Base64;
-import android.util.Log;
 
 import com.github.omadahealth.lollipin.lib.PinActivity;
 import com.github.omadahealth.lollipin.lib.PinCompatActivity;
 import com.github.omadahealth.lollipin.lib.PinFragmentActivity;
+import com.github.omadahealth.lollipin.lib.SinglePinCompatActivity;
 import com.github.omadahealth.lollipin.lib.encryption.Encryptor;
 import com.github.omadahealth.lollipin.lib.enums.Algorithm;
 import com.github.omadahealth.lollipin.lib.interfaces.LifeCycleInterface;
@@ -35,6 +34,10 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
      * The {@link android.content.SharedPreferences} key used to store the last active time
      */
     private static final String LAST_ACTIVE_MILLIS_PREFERENCE_KEY = "LAST_ACTIVE_MILLIS";
+    /**
+     * The {@link android.content.SharedPreferences} key used to store if it should lock immediately
+     */
+    private static final String SHOULD_LOCK_NOW_PREFERENCE_KEY = "SHOULD_LOCK_NOW";
     /**
      * The {@link android.content.SharedPreferences} key used to store the timeout
      */
@@ -65,6 +68,18 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
      * This value defaults to true for backwards compatibility.
      */
     private static final String FINGERPRINT_AUTH_ENABLED_PREFERENCE_KEY = "FINGERPRINT_AUTH_ENABLED_PREFERENCE_KEY";
+    /**
+     * The exponential back off preference key
+     */
+    private static final String USE_EXPONENTIAL_BACKOFF = "USE_EXPONENTIAL_BACKOFF";
+    /**
+     * The exponential back off max attempts
+     */
+    private static final String EXPONENTIAL_BACKOFF_MAX_ATTEMPS = "EXPONENTIAL_BACKOFF_MAX_ATTEMPS";
+    /**
+     * The remaining back off time preference key
+     */
+    private static final String REMAINING_BACKOFF_TIME = "REMAINING_BACKOFF_TIME";
     /**
      * The default password salt
      */
@@ -191,10 +206,10 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
     }
 
     @Override
-    public boolean shouldShowForgot(int appLockType) {
-        return mSharedPreferences.getBoolean(SHOW_FORGOT_PREFERENCE_KEY, true)
-                && appLockType != AppLock.ENABLE_PINLOCK && appLockType != AppLock.CONFIRM_PIN;
+    public boolean shouldShowForgot() {
+        return mSharedPreferences.getBoolean(SHOW_FORGOT_PREFERENCE_KEY, false);
     }
+
 
     @Override
     public boolean onlyBackgroundTimeout() {
@@ -213,6 +228,7 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
         PinActivity.setListener(this);
         PinCompatActivity.setListener(this);
         PinFragmentActivity.setListener(this);
+        SinglePinCompatActivity.setListener(this);
     }
 
     @Override
@@ -220,6 +236,7 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
         PinActivity.clearListeners();
         PinCompatActivity.clearListeners();
         PinFragmentActivity.clearListeners();
+        SinglePinCompatActivity.clearListeners();
     }
 
     @Override
@@ -227,6 +244,7 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
         PinActivity.clearListeners();
         PinCompatActivity.clearListeners();
         PinFragmentActivity.clearListeners();
+        SinglePinCompatActivity.clearListeners();
         mSharedPreferences.edit().remove(PASSWORD_PREFERENCE_KEY)
                 .remove(LAST_ACTIVE_MILLIS_PREFERENCE_KEY)
                 .remove(PASSWORD_ALGORITHM_PREFERENCE_KEY)
@@ -235,6 +253,9 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
                 .remove(SHOW_FORGOT_PREFERENCE_KEY)
                 .remove(FINGERPRINT_AUTH_ENABLED_PREFERENCE_KEY)
                 .remove(ONLY_BACKGROUND_TIMEOUT_PREFERENCE_KEY)
+                .remove(SHOULD_LOCK_NOW_PREFERENCE_KEY)
+                .remove(USE_EXPONENTIAL_BACKOFF)
+                .remove(REMAINING_BACKOFF_TIME)
                 .apply();
     }
 
@@ -263,6 +284,25 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
     }
 
     @Override
+    public void lockNow() {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean(SHOULD_LOCK_NOW_PREFERENCE_KEY, true);
+        editor.apply();
+    }
+
+    @Override
+    public boolean isAppLockedFromLockNow() {
+        return mSharedPreferences.getBoolean(SHOULD_LOCK_NOW_PREFERENCE_KEY, false);
+    }
+
+    @Override
+    public void unlockNow() {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean(SHOULD_LOCK_NOW_PREFERENCE_KEY, false);
+        editor.apply();
+    }
+
+    @Override
     public boolean checkPasscode(String passcode) {
         Algorithm algorithm = Algorithm.getFromText(mSharedPreferences.getString(PASSWORD_ALGORITHM_PREFERENCE_KEY, ""));
 
@@ -276,6 +316,10 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
         }
 
         if (storedPasscode.equalsIgnoreCase(passcode)) {
+            //on success restore the lock now preference
+            SharedPreferences.Editor editor = mSharedPreferences.edit();
+            editor.putBoolean(SHOULD_LOCK_NOW_PREFERENCE_KEY, false);
+            editor.apply();
             return true;
         } else {
             return false;
@@ -314,11 +358,7 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
 
     @Override
     public boolean isPasscodeSet() {
-        if (mSharedPreferences.contains(PASSWORD_PREFERENCE_KEY)) {
-            return true;
-        }
-
-        return false;
+        return mSharedPreferences.contains(PASSWORD_PREFERENCE_KEY);
     }
 
     @Override
@@ -327,7 +367,6 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
 
         // ignored activities
         if (mIgnoredActivities.contains(clazzName)) {
-            Log.d(TAG, "ignore activity " + clazzName);
             return true;
         }
 
@@ -336,8 +375,6 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
 
     @Override
     public boolean shouldLockSceen(Activity activity) {
-        Log.d(TAG, "Lollipin shouldLockSceen() called");
-
         // previously backed out of pin screen
         if (pinChallengeCancelled()) {
             return true;
@@ -347,24 +384,24 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
         if (activity instanceof AppLockActivity) {
             AppLockActivity ala = (AppLockActivity) activity;
             if (ala.getType() == AppLock.UNLOCK_PIN) {
-                Log.d(TAG, "already unlock activity");
                 return false;
             }
         }
 
         // no pass code set
         if (!isPasscodeSet()) {
-            Log.d(TAG, "lock passcode not set.");
             return false;
         }
 
+        // if should lock now is selected
+        if (mSharedPreferences.getBoolean(SHOULD_LOCK_NOW_PREFERENCE_KEY, false)) {
+            return true;
+        }
         // no enough timeout
         long lastActiveMillis = getLastActiveMillis();
         long passedTime = System.currentTimeMillis() - lastActiveMillis;
         long timeout = getTimeout();
         if (lastActiveMillis > 0 && passedTime <= timeout) {
-            Log.d(TAG, "no enough timeout " + passedTime + " for "
-                    + timeout);
             return false;
         }
 
@@ -376,9 +413,6 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
         if (isIgnoredActivity(activity)) {
             return;
         }
-
-        String clazzName = activity.getClass().getName();
-        Log.d(TAG, "onActivityPaused " + clazzName);
 
         if (!shouldLockSceen(activity) && !(activity instanceof AppLockActivity)) {
             setLastActiveMillis();
@@ -398,11 +432,7 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
             return;
         }
 
-        String clazzName = activity.getClass().getName();
-        Log.d(TAG, "onActivityResumed " + clazzName);
-
         if (shouldLockSceen(activity)) {
-            Log.d(TAG, "mActivityClass.getClass() " + mActivityClass);
             Intent intent = new Intent(activity.getApplicationContext(),
                     mActivityClass);
             intent.putExtra(AppLock.EXTRA_TYPE, AppLock.UNLOCK_PIN);
@@ -410,12 +440,55 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
             activity.getApplication().startActivity(intent);
         }
 
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.GINGERBREAD_MR1) {
-            return;
-        }
-
         if (!shouldLockSceen(activity) && !(activity instanceof AppLockActivity)) {
             setLastActiveMillis();
         }
+    }
+
+    @Override
+    public void setExponentialBackoff(boolean useExponentialBackoff) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean(USE_EXPONENTIAL_BACKOFF, useExponentialBackoff);
+        editor.apply();
+    }
+
+    @Override
+    public void setExponentialBackoffMaxAttemps(int maxAttempts) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putInt(EXPONENTIAL_BACKOFF_MAX_ATTEMPS, maxAttempts);
+        editor.apply();
+    }
+
+    @Override
+    public int getExponentialBackoffMaxAttempts() {
+        return mSharedPreferences.getInt(EXPONENTIAL_BACKOFF_MAX_ATTEMPS, 6);
+    }
+
+    @Override
+    public boolean isExponentialBackoffEnabled() {
+        return mSharedPreferences.getBoolean(USE_EXPONENTIAL_BACKOFF, true);
+    }
+
+    @Override
+    public void saveRemainingBackoffTime(int remainingBackOffTime) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putInt(REMAINING_BACKOFF_TIME, remainingBackOffTime);
+        editor.apply();
+    }
+
+    @Override
+    public int getRemainingBackoffTime() {
+        return mSharedPreferences.getInt(REMAINING_BACKOFF_TIME, 0);
+    }
+
+    @Override
+    protected int getPreviousAttempts() {
+        int previousAttempts = (int) Math.sqrt(getRemainingBackoffTime());
+
+        if (previousAttempts < getExponentialBackoffMaxAttempts()) {
+            return previousAttempts;
+        }
+
+        return getExponentialBackoffMaxAttempts();
     }
 }

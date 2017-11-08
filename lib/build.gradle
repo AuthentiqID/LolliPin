@@ -1,14 +1,23 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 26
-    buildToolsVersion '26.0.1'
+    compileSdkVersion rootProject.ext.targetSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    lintOptions {
+        abortOnError false
+    }
 
     defaultConfig {
-        minSdkVersion 14
-        targetSdkVersion 26
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 2
         versionName VERSION_NAME
+        def greenhouseBuild = System.getenv()["GREENHOUSE_BUILD"]
+        if (greenhouseBuild) {
+            resValue "bool", "is_greenhouse_build", "true"
+        } else {
+            resValue "bool", "is_greenhouse_build", "false"
+        }
     }
     buildTypes {
         release {
@@ -20,43 +29,8 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    //RippleView
-    compile 'com.github.traex.rippleeffect:ripple:1.3.1-OG'
-    //TypefaceView
-    compile 'com.github.omadahealth.typefaceview:typefaceview:1.5.0@aar' //TypefaceTextView
-
-    //Compat
-    compile 'com.android.support:support-v4:26.0.2'
-    compile 'com.android.support:appcompat-v7:26.0.2'
-    compile "com.android.support:support-v13:26.0.2"
+    testCompile 'junit:junit:4.12'
+    compile "com.android.support:support-v4:$rootProject.ext.supportLibraryVersion"
+    compile "com.android.support:appcompat-v7:$rootProject.ext.supportLibraryVersion"
+    compile "com.android.support:support-v13:$rootProject.ext.supportLibraryVersion"
 }
-repositories {
-    maven {
-        url 'https://maven.google.com'
-        // Alternative URL is 'https://dl.google.com/dl/android/maven2/'
-    }
-}
-
-//gradle clean build uploadArchives
-apply from: 'https://raw.github.com/omadahealth/omada-nexus/master/gradle-mvn-push/gradle-mvn-push.gradle'
-
-//task androidSourcesJar(type: Jar) {
-//    classifier = 'sources'
-//    from android.sourceSets.main.java.sourceFiles
-//}
-//artifacts {
-//    archives androidSourcesJar
-//}
-//
-//apply plugin: 'maven'
-//uploadArchives {
-//    repositories {
-//        mavenDeployer {
-//            repository(url: uri("../../omada-nexus/release"))
-//            snapshotRepository(url: uri("../../omada-nexus/release"))
-//            pom.groupId = GROUP
-//            pom.artifactId = POM_ARTIFACT_ID
-//            pom.version = VERSION_NAME
-//        }
-//    }
-//}

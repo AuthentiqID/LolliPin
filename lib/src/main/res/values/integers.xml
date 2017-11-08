@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <integer name="ripple_effect_duration">200</integer>
+    <string-array name="pinTimeoutValues">
+        <item>0</item>
+        <item>60000</item>
+        <item>300000</item>
+        <item>900000</item>
+    </string-array>
 </resources>

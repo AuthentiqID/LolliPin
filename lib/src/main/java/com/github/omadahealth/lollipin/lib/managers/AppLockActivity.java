@@ -5,11 +5,15 @@ import android.content.Intent;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -22,6 +26,7 @@ import com.github.omadahealth.lollipin.lib.views.PinCodeRoundView;
 
 import java.util.Arrays;
 import java.util.List;
+
 
 /**
  * Created by stoyan and olivier on 1/13/15.
@@ -36,12 +41,12 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
     private static final int DEFAULT_PIN_LENGTH = 4;
 
     protected TextView mStepTextView;
-    protected TextView mForgotTextView;
+    protected Button mForgotTextView;
     protected PinCodeRoundView mPinCodeRoundView;
     protected KeyboardView mKeyboardView;
     protected ImageView mFingerprintImageView;
     protected TextView mFingerprintTextView;
-
+    protected FrameLayout mDisablePinEntry;
     protected LockManager mLockManager;
 
 
@@ -49,12 +54,15 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
     protected FingerprintUiHelper mFingerprintUiHelper;
 
     protected int mType = AppLock.UNLOCK_PIN;
-    protected int mAttempts = 1;
+    protected int mAttempts = 0;
     protected String mPinCode;
 
     protected String mOldPinCode;
 
     private boolean isCodeSuccessful = false;
+
+    int backoffTime = 2;
+    int remainingBackOffTime = 0;
 
     /**
      * First creation
@@ -62,9 +70,12 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(getContentView());
         initLayout(getIntent());
+        if (mLockManager.getAppLock().getRemainingBackoffTime() > 0) {
+            mAttempts = mLockManager.getAppLock().getPreviousAttempts();
+            setTimeBeforeRetrying(true);
+        }
     }
 
     /**
@@ -73,7 +84,6 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-
         initLayout(intent);
     }
 
@@ -92,15 +102,15 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
+
     /**
      * Init completely the layout, depending of the extra {@link com.github.omadahealth.lollipin.lib.managers.AppLock#EXTRA_TYPE}
      */
     private void initLayout(Intent intent) {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.GINGERBREAD_MR1) {
-            //Animate if greater than 2.3.3
-            overridePendingTransition(R.anim.nothing, R.anim.nothing);
-        }
-
         Bundle extras = intent.getExtras();
         if (extras != null) {
             mType = extras.getInt(AppLock.EXTRA_TYPE, AppLock.UNLOCK_PIN);
@@ -113,18 +123,19 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
         enableAppLockerIfDoesNotExist();
         mLockManager.getAppLock().setPinChallengeCancelled(false);
 
-        mStepTextView = (TextView) this.findViewById(R.id.pin_code_step_textview);
-        mPinCodeRoundView = (PinCodeRoundView) this.findViewById(R.id.pin_code_round_view);
+        mStepTextView = this.findViewById(R.id.pin_code_step_textview);
+        mPinCodeRoundView = this.findViewById(R.id.pin_code_round_view);
         mPinCodeRoundView.setPinLength(this.getPinLength());
-        mForgotTextView = (TextView) this.findViewById(R.id.pin_code_forgot_textview);
+        mForgotTextView = this.findViewById(R.id.pin_code_forgot_textview);
         mForgotTextView.setOnClickListener(this);
-        mKeyboardView = (KeyboardView) this.findViewById(R.id.pin_code_keyboard_view);
+        mKeyboardView = this.findViewById(R.id.pin_code_keyboard_view);
         mKeyboardView.setKeyboardButtonClickedListener(this);
+        mDisablePinEntry = this.findViewById(R.id.disable_pin_entry);
 
         int logoId = mLockManager.getAppLock().getLogoId();
-        ImageView logoImage = ((ImageView) findViewById(R.id.pin_code_logo_imageview));
+        ImageView logoImage = findViewById(R.id.pin_code_logo_imageview);
         if (logoId != AppLock.LOGO_ID_NONE) {
-            logoImage.setVisibility(View.VISIBLE);
+            logoImage.setVisibility(View.GONE);
             logoImage.setImageResource(logoId);
         }
         mForgotTextView.setText(getForgotText());
@@ -138,29 +149,28 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
      * and {@link FingerprintManager#isHardwareDetected()}.
      */
     private void initLayoutForFingerprint() {
-        mFingerprintImageView = (ImageView) this.findViewById(R.id.pin_code_fingerprint_imageview);
-        mFingerprintTextView = (TextView) this.findViewById(R.id.pin_code_fingerprint_textview);
+        mFingerprintImageView = this.findViewById(R.id.pin_code_fingerprint_imageview);
+        mFingerprintTextView = this.findViewById(R.id.pin_code_fingerprint_textview);
         if (mType == AppLock.UNLOCK_PIN && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             mFingerprintManager = (FingerprintManager) getSystemService(Context.FINGERPRINT_SERVICE);
             mFingerprintUiHelper = new FingerprintUiHelper.FingerprintUiHelperBuilder(mFingerprintManager).build(mFingerprintImageView, mFingerprintTextView, this);
             try {
-            if (mFingerprintManager.isHardwareDetected() && mFingerprintUiHelper.isFingerprintAuthAvailable()
-                    && mLockManager.getAppLock().isFingerprintAuthEnabled()) {
+                if (mFingerprintManager.isHardwareDetected() && mFingerprintUiHelper.isFingerprintAuthAvailable()
+                        && mLockManager.getAppLock().isFingerprintAuthEnabled()) {
                     mFingerprintImageView.setVisibility(View.VISIBLE);
                     mFingerprintTextView.setVisibility(View.VISIBLE);
                     mFingerprintUiHelper.startListening();
                 } else {
-                    mFingerprintImageView.setVisibility(View.GONE);
-                    mFingerprintTextView.setVisibility(View.GONE);
+                    mFingerprintImageView.setVisibility(View.INVISIBLE);
+                    mFingerprintTextView.setVisibility(View.INVISIBLE);
                 }
             } catch (SecurityException e) {
-                Log.e(TAG, e.toString());
-                mFingerprintImageView.setVisibility(View.GONE);
-                mFingerprintTextView.setVisibility(View.GONE);
+                mFingerprintImageView.setVisibility(View.INVISIBLE);
+                mFingerprintTextView.setVisibility(View.INVISIBLE);
             }
         } else {
-            mFingerprintImageView.setVisibility(View.GONE);
-            mFingerprintTextView.setVisibility(View.GONE);
+            mFingerprintImageView.setVisibility(View.INVISIBLE);
+            mFingerprintTextView.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -196,19 +206,19 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
         String msg = null;
         switch (reason) {
             case AppLock.DISABLE_PINLOCK:
-                msg = getString(R.string.pin_code_step_disable, this.getPinLength());
+                msg = getString(R.string.pin_code_step_disable);
                 break;
             case AppLock.ENABLE_PINLOCK:
-                msg = getString(R.string.pin_code_step_create, this.getPinLength());
+                msg = getString(R.string.pin_code_step_create);
                 break;
             case AppLock.CHANGE_PIN:
-                msg = getString(R.string.pin_code_step_change, this.getPinLength());
+                msg = getString(R.string.pin_code_step_change);
                 break;
             case AppLock.UNLOCK_PIN:
-                msg = getString(R.string.pin_code_step_unlock, this.getPinLength());
+                msg = getString(R.string.pin_code_step_unlock);
                 break;
             case AppLock.CONFIRM_PIN:
-                msg = getString(R.string.pin_code_step_enable_confirm, this.getPinLength());
+                msg = getString(R.string.pin_code_step_enable_confirm);
                 break;
         }
         return msg;
@@ -218,9 +228,7 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
         return getString(R.string.pin_code_forgot_text);
     }
 
-    private void setForgotTextVisibility(){
-        mForgotTextView.setVisibility(mLockManager.getAppLock().shouldShowForgot(mType) ? View.VISIBLE : View.GONE);
-    }
+    public abstract void setForgotTextVisibility();
 
     /**
      * Overrides to allow a slide_down animation when finishing
@@ -235,14 +243,13 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
                 AppLock appLock = mLockManager.getAppLock();
                 if (appLock != null) {
                     appLock.setLastActiveMillis();
+                    appLock.unlockNow();
                 }
             }
         }
 
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.GINGERBREAD_MR1) {
-            //Animate if greater than 2.3.3
-            overridePendingTransition(R.anim.nothing, R.anim.slide_down);
-        }
+        //Animate if greater than 2.3.3
+        overridePendingTransition(R.anim.nothing, R.anim.slide_down);
     }
 
     /**
@@ -331,6 +338,7 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
                     onPinCodeSuccess();
                     finish();
                 } else {
+                    setForgotTextVisibility();
                     onPinCodeError();
                 }
                 break;
@@ -357,8 +365,8 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
 
     @Override
     public void onAuthenticated() {
-        Log.e(TAG, "Fingerprint READ!!!");
         setResult(RESULT_OK);
+        resetRemainingBackOffTime();
         onPinCodeSuccess();
         finish();
     }
@@ -389,6 +397,7 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
      */
     protected void onPinCodeError() {
         onPinFailure(mAttempts++);
+        setTimeBeforeRetrying(false);
         Thread thread = new Thread() {
             public void run() {
                 mPinCode = "";
@@ -401,10 +410,67 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
         runOnUiThread(thread);
     }
 
+    private void setTimeBeforeRetrying(boolean onCreate) {
+        if (onCreate && mLockManager.getAppLock().isExponentialBackoffEnabled()) {
+            disablePinEntry(Math.min((int) Math.pow(backoffTime, mAttempts), (int) Math.pow(2, mLockManager.getAppLock().getExponentialBackoffMaxAttempts())));
+        } else if (!onCreate && mLockManager.getAppLock().isExponentialBackoffEnabled()) {
+            disablePinEntry(Math.min((int) Math.pow(backoffTime, mAttempts - 2.0d), (int) Math.pow(2, mLockManager.getAppLock().getExponentialBackoffMaxAttempts())));
+        }
+    }
+
+    private void disablePinEntry(int min) {
+        new CountDownTimer(min * 1000, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                disableKeyboard();
+                remainingBackOffTime = (int) (millisUntilFinished / 1000);
+                mLockManager.getAppLock().saveRemainingBackoffTime(remainingBackOffTime);
+            }
+
+            @Override
+            public void onFinish() {
+                enableKeyboard();
+            }
+        }.start();
+    }
+
+    private void enableKeyboard() {
+        mKeyboardView.enableKeyboardButtons();
+        mDisablePinEntry.setVisibility(View.GONE);
+
+        if (mFingerprintUiHelper != null && mFingerprintUiHelper.isFingerprintAuthAvailable() && mLockManager.getAppLock().isFingerprintAuthEnabled()) {
+            mFingerprintUiHelper.startListening();
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.hint_color));
+        }
+    }
+
+    private void disableKeyboard() {
+        mKeyboardView.disableKeyboardButtons();
+
+        if (mFingerprintUiHelper != null && mFingerprintUiHelper.isFingerprintAuthAvailable() && mLockManager.getAppLock().isFingerprintAuthEnabled()) {
+            mFingerprintUiHelper.stopListening();
+        }
+
+        mDisablePinEntry.setVisibility(View.VISIBLE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.light_gray_bar));
+        }
+    }
+
     protected void onPinCodeSuccess() {
         isCodeSuccessful = true;
         onPinSuccess(mAttempts);
+        resetRemainingBackOffTime();
         mAttempts = 1;
+    }
+
+    private void resetRemainingBackOffTime() {
+        if (mLockManager.getAppLock().isExponentialBackoffEnabled()) {
+            mLockManager.getAppLock().saveRemainingBackoffTime(-1);
+        }
     }
 
     /**

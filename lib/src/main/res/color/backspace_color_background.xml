@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@null" android:state_pressed="true">
+        <shape android:shape="oval">
+            <solid android:color="@color/hint_color" />
+            <size android:width="@dimen/keyboard_button_diameter" android:height="@dimen/keyboard_button_diameter" />
+
+        </shape>
+    </item>
+    <item android:color="@null" android:state_focused="true">
+        <shape android:shape="oval">
+            <solid android:color="@null" />
+            <size android:width="@dimen/keyboard_button_diameter" android:height="@dimen/keyboard_button_diameter" />
+
+        </shape>
+    </item>
+    <item android:color="@null">
+        <shape android:shape="oval">
+            <solid android:color="@null" />
+            <size android:width="@dimen/keyboard_button_diameter" android:height="@dimen/keyboard_button_diameter" />
+
+        </shape>
+    </item>
+</selector>

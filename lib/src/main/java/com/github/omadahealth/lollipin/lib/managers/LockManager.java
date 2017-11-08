@@ -5,6 +5,7 @@ import android.content.Context;
 import com.github.omadahealth.lollipin.lib.PinActivity;
 import com.github.omadahealth.lollipin.lib.PinCompatActivity;
 import com.github.omadahealth.lollipin.lib.PinFragmentActivity;
+import com.github.omadahealth.lollipin.lib.SinglePinCompatActivity;
 
 /**
  * Allows to handle the {@link com.github.omadahealth.lollipin.lib.managers.AppLock} from within
@@ -51,7 +52,7 @@ public class LockManager<T extends AppLockActivity> {
      */
     public boolean isAppLockEnabled() {
         return (mAppLocker != null && (PinActivity.hasListeners() ||
-                PinFragmentActivity.hasListeners() || PinCompatActivity.hasListeners()));
+                PinFragmentActivity.hasListeners() || PinCompatActivity.hasListeners())|| SinglePinCompatActivity.hasListeners());
     }
 
     /**

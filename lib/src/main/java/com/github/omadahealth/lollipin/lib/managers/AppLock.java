@@ -95,7 +95,7 @@ public abstract class AppLock {
     /**
      * Get the forgot option used by {@link com.github.omadahealth.lollipin.lib.managers.AppLockActivity}
      */
-    public abstract boolean shouldShowForgot(int appLockType);
+    public abstract boolean shouldShowForgot();
 
     /**
      * Set the forgot option used by {@link com.github.omadahealth.lollipin.lib.managers.AppLockActivity}
@@ -202,4 +202,49 @@ public abstract class AppLock {
      * Otherwise returns true
      */
     public abstract boolean shouldLockSceen(Activity activity);
+
+    /**
+     * Set the lock now parameter of the app to true {@link #shouldLockSceen(android.app.Activity)}.
+     */
+    public abstract void lockNow();
+
+    public abstract boolean isAppLockedFromLockNow();
+
+    /**
+     * Remove the lock now parameter of the app to true {@link #shouldLockSceen(android.app.Activity)}.
+     */
+    public abstract void unlockNow();
+
+    /**
+     * Enable or disable the exponential backoff mechanism for wrong pin entry
+     */
+    public abstract void setExponentialBackoff(boolean useExponentialBackoff);
+
+    /**
+     * Checks if the exponential backoff is enabled or not
+     */
+    public abstract boolean isExponentialBackoffEnabled();
+
+    /**
+     * Sets the exponential backoff max attempts, default is 6 (eq to 64 seconds)
+     */
+    public abstract void setExponentialBackoffMaxAttemps(int maxAttempts);
+
+    /**
+     * Gets the exponential backoff max attempts
+     */
+    public abstract int getExponentialBackoffMaxAttempts();
+
+    /**
+     * Saves the remaining back off time. Useful when force quitting the app
+     * @param remainingBackOffTime
+     */
+    public abstract void saveRemainingBackoffTime(int remainingBackOffTime);
+
+    /**
+     * Gets the remaining back off time
+     */
+    public abstract int getRemainingBackoffTime();
+
+    protected abstract int getPreviousAttempts();
 }
