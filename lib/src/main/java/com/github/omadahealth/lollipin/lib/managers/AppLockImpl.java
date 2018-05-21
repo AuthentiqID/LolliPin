@@ -363,14 +363,16 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
 
     @Override
     public boolean isIgnoredActivity(Activity activity) {
-        String clazzName = activity.getClass().getName();
-
         // ignored activities
-        if (mIgnoredActivities.contains(clazzName)) {
-            return true;
-        }
+        return mIgnoredActivities.contains(activity.getClass().getName());
 
-        return false;
+    }
+
+    @Override
+    public boolean enableFingerprintForThisScreen(Activity activity) {
+        // should not have fingerprint enabled
+        return !mNoFingerprintActivities.contains(activity.getClass().getName());
+
     }
 
     @Override
@@ -436,6 +438,7 @@ public class AppLockImpl<T extends AppLockActivity> extends AppLock implements L
             Intent intent = new Intent(activity.getApplicationContext(),
                     mActivityClass);
             intent.putExtra(AppLock.EXTRA_TYPE, AppLock.UNLOCK_PIN);
+            intent.putExtra(AppLock.ENABLE_FINGERPRINT, enableFingerprintForThisScreen(activity));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.getApplication().startActivity(intent);
         }

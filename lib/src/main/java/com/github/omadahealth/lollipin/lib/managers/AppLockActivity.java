@@ -90,8 +90,11 @@ public abstract class AppLockActivity extends PinActivity implements KeyboardBut
     @Override
     protected void onResume() {
         super.onResume();
+
         //Init layout for Fingerprint
-        initLayoutForFingerprint();
+        if (getIntent().getBooleanExtra(AppLock.ENABLE_FINGERPRINT, true)) {
+            initLayoutForFingerprint();
+        }
     }
 
     @Override

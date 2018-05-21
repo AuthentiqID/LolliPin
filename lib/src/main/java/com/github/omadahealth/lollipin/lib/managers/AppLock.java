@@ -38,6 +38,13 @@ public abstract class AppLock {
     public static final String EXTRA_TYPE = "type";
 
     /**
+     * ENABLE_FINGERPRINT, uses to pass to the {@link com.github.omadahealth.lollipin.lib.managers.AppLockActivity}
+     * to determine if the fingerprint UI should be used at all.
+     */
+    public static final String ENABLE_FINGERPRINT = "ENABLE_FINGERPRINT";
+
+
+    /**
      * DEFAULT_TIMEOUT, define the default timeout returned by {@link #getTimeout()}.
      * If you want to modify it, you can call {@link #setTimeout(long)}. Will be stored using
      * {@link android.content.SharedPreferences}
@@ -52,8 +59,15 @@ public abstract class AppLock {
      */
     protected HashSet<String> mIgnoredActivities;
 
+    /**
+     * A {@link java.util.HashSet} of {@link java.lang.String} which are the classes we don't want to
+     * take into account for the fingerprint UI. These activities will not use the fingerprint sensor
+     */
+    protected HashSet<String> mNoFingerprintActivities;
+
     public AppLock() {
         mIgnoredActivities = new HashSet<String>();
+        mNoFingerprintActivities = new HashSet<String>();
     }
 
     /**
@@ -70,6 +84,22 @@ public abstract class AppLock {
     public void removeIgnoredActivity(Class<?> clazz) {
         String clazzName = clazz.getName();
         this.mIgnoredActivities.remove(clazzName);
+    }
+
+    /**
+     * Add a no fingerprint activity to the {@link java.util.HashSet}
+     */
+    public void addNofingerprintActivity(Class<?> clazz) {
+        String clazzName = clazz.getName();
+        this.mNoFingerprintActivities.add(clazzName);
+    }
+
+    /**
+     * Remove a no fingerprint activity to the {@link java.util.HashSet}
+     */
+    public void removeNoFingerPrintActivity(Class<?> clazz) {
+        String clazzName = clazz.getName();
+        this.mNoFingerprintActivities.remove(clazzName);
     }
 
     /**
@@ -191,6 +221,12 @@ public abstract class AppLock {
      * {@link com.github.omadahealth.lollipin.lib.interfaces.LifeCycleInterface}
      */
     public abstract boolean isIgnoredActivity(Activity activity);
+
+    /**
+     * Check if an activity must have a fingerprint UI
+     * {@link com.github.omadahealth.lollipin.lib.interfaces.LifeCycleInterface}
+     */
+    public abstract boolean enableFingerprintForThisScreen(Activity activity);
 
     /**
      * Evaluates if:
